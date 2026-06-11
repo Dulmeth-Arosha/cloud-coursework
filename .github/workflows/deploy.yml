@@ -1,0 +1,37 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.EC2_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ secrets.EC2_HOST_1 }} >> ~/.ssh/known_hosts
+        ssh-keyscan -H ${{ secrets.EC2_HOST_2 }} >> ~/.ssh/known_hosts
+
+    - name: Deploy to Server 1
+      run: |
+        scp index.html ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST_1 }}:/tmp/index.html
+        ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST_1 }} "
+          sudo mv /tmp/index.html /usr/share/nginx/html/index.html &&
+          sudo systemctl restart nginx
+        "
+
+    - name: Deploy to Server 2
+      run: |
+        scp index.html ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST_2 }}:/tmp/index.html
+        ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST_2 }} "
+          sudo mv /tmp/index.html /usr/share/nginx/html/index.html &&
+          sudo systemctl restart nginx
+        "
